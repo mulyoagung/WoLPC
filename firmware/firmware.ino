@@ -109,9 +109,24 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if (String(topic) == cmdTopic) {
     if (message.startsWith("WAKE|")) {
       String mac = message.substring(5);
-      sendLog("Sending Magic Packet to: " + mac);
+      
+      // Calculate broadcast address dynamically based on current IP/Subnet
+      IPAddress ip = WiFi.localIP();
+      IPAddress subnet = WiFi.subnetMask();
+      IPAddress broadcast = WOL.calculateBroadcastAddress(ip, subnet);
+      
+      sendLog("Waking device: " + mac);
+      sendLog("Network: IP=" + ip.toString() + " mask=" + subnet.toString());
+      sendLog("Using Broadcast: " + broadcast.toString());
+      
+      WOL.setBroadcastAddress(broadcast);
       WOL.sendMagicPacket(mac.c_str());
-      sendLog("WOL Burst sent.");
+      
+      // Also send to 255.255.255.255 just in case
+      WOL.setBroadcastAddress(IPAddress(255, 255, 255, 255));
+      WOL.sendMagicPacket(mac.c_str());
+      
+      sendLog("WOL packets sent to directed and global broadcast.");
     }
   }
 }
@@ -119,12 +134,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
 void reconnect() {
   while (!client.connected()) {
     sendLog("Attempting MQTT connection...");
-    // --- PENAMBAHAN LWT ---
-    // client.connect(id, user, pass, willTopic, willQos, willRetain, willMessage)
     if (client.connect(deviceId.c_str(), statusTopic.c_str(), 1, true, "offline")) {
       sendLog("MQTT Connected");
       client.subscribe(cmdTopic.c_str());
-      client.publish(statusTopic.c_str(), "online", true); // Send online with retain flag
+      client.publish(statusTopic.c_str(), "online", true); 
     } else {
       sendLog("failed, rc=" + String(client.state()) + ". Try again in 5s");
       delay(5000);
@@ -137,8 +150,8 @@ void setup() {
   setupWiFi();
   client.setServer(mqttServer, mqttPort);
   client.setCallback(callback);
-  client.setKeepAlive(60); // Keep connection alive
-  WOL.setRepeat(5, 100);   // Increase repeats for reliability
+  client.setKeepAlive(60); 
+  WOL.setRepeat(10, 50);   // More repeats, shorter delay
 }
 
 void loop() {

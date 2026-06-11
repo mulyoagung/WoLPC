@@ -10,6 +10,7 @@ const STATUS_TOPIC = `nyalakanpc/${DEVICE_ID}/status`;
 
 export function Dashboard({ profile }) {
   const [client, setClient] = useState(null);
+  const [brokerStatus, setBrokerStatus] = useState('connecting');
   const [logs, setLogs] = useState([]);
   const [espStatus, setEspStatus] = useState('offline');
   const [devices, setDevices] = useState([]);
@@ -23,11 +24,23 @@ export function Dashboard({ profile }) {
       clientId: `dash_${Math.random().toString(16).slice(2, 8)}`,
       clean: true,
       reconnectPeriod: 3000,
+      connectTimeout: 30 * 1000, // 30s timeout for mobile
+      keepalive: 60,
     });
+
     mqttClient.on('connect', () => {
+      setBrokerStatus('connected');
       mqttClient.subscribe([LOG_TOPIC, STATUS_TOPIC]);
       setClient(mqttClient);
     });
+
+    mqttClient.on('reconnect', () => setBrokerStatus('reconnecting'));
+    mqttClient.on('close', () => setBrokerStatus('disconnected'));
+    mqttClient.on('error', (err) => {
+      console.error('MQTT Error:', err);
+      setBrokerStatus('error');
+    });
+
     mqttClient.on('message', (topic, msg) => {
       const text = msg.toString();
       if (topic === LOG_TOPIC) {
@@ -36,7 +49,7 @@ export function Dashboard({ profile }) {
         setEspStatus(text);
       }
     });
-    mqttClient.on('offline', () => setEspStatus('offline'));
+
     return () => mqttClient.end();
   }, []);
 
@@ -109,8 +122,10 @@ export function Dashboard({ profile }) {
               </p>
             </div>
             <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-primary-200">Broker</p>
-              <p className="font-mono font-bold text-sm text-green-300">{client ? 'LINKED' : '...'}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-primary-200">System Link</p>
+              <p className={`font-mono font-bold text-sm ${brokerStatus === 'connected' ? 'text-green-300' : 'text-orange-300 animate-pulse'}`}>
+                {brokerStatus.toUpperCase()}
+              </p>
             </div>
             <div className="bg-white/10 backdrop-blur rounded-xl p-3 text-center">
               <p className="text-[10px] font-bold uppercase tracking-wider text-primary-200">Devices</p>
@@ -176,7 +191,16 @@ export function Dashboard({ profile }) {
               <span className="material-symbols-outlined text-surface-400">terminal</span>
               <h3 className="font-bold text-surface-800 text-sm">System Logs</h3>
             </div>
-            <span className={`w-2 h-2 rounded-full ${espStatus === 'online' ? 'bg-green-500 animate-pulse-dot' : 'bg-red-400'}`} />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${brokerStatus === 'connected' ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`} />
+                <span className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">BROKER</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${espStatus === 'online' ? 'bg-green-500 animate-pulse-dot' : 'bg-red-400'}`} />
+                <span className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">ESP01</span>
+              </div>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto bg-surface-900 p-4 font-mono text-xs text-surface-300">
             {logs.length === 0 ? (
