@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import mqtt from 'mqtt';
 import { supabase } from '../lib/supabase';
 
-const BROKER_URL = import.meta.env.VITE_MQTT_BROKER || 'wss://broker.hivemq.com:8884/mqtt';
+const BROKER_URL = import.meta.env.VITE_MQTT_BROKER || 'wss://broker.emqx.io:443/mqtt';
 const DEVICE_ID = import.meta.env.VITE_DEVICE_ID || 'esp01_wol_01';
 const CMD_TOPIC = `nyalakanpc/${DEVICE_ID}/cmd`;
 const LOG_TOPIC = `nyalakanpc/${DEVICE_ID}/logs`;

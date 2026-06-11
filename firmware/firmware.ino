@@ -9,7 +9,7 @@
 // --- Configuration ---
 const char* ssid = SECRET_SSID;
 const char* portalUrl = SECRET_PORTAL_URL;
-const char* mqttServer = "broker.hivemq.com";
+const char* mqttServer = "broker.emqx.io";
 const int mqttPort = 1883;
 
 // Topic structure: nyalakanpc/[DEVICE_ID]/[SUBTOPIC]
